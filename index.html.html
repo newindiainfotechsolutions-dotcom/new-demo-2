@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CVP Model — Cost-Volume-Profit Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c2b39;
+    --ink-soft:#4a5a68;
+    --paper:#eef0ea;
+    --panel:#ffffff;
+    --line:#d8dbd0;
+    --profit:#1f6f5c;
+    --profit-soft:rgba(31,111,92,0.12);
+    --cost:#a1452a;
+    --cost-soft:rgba(161,69,42,0.12);
+    --gold:#b6862f;
+    --gold-soft:rgba(182,134,47,0.15);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',-apple-system,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding:28px;
+  }
+  .mono{font-family:'IBM Plex Mono','SFMono-Regular',Menlo,monospace;}
+  .header{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:24px;
+    flex-wrap:wrap; gap:12px;
+  }
+  .title-block h1{
+    font-family:Georgia,'Times New Roman',serif; font-weight:700; font-size:30px;
+    margin:0 0 4px 0; letter-spacing:-0.01em;
+  }
+  .title-block .sub{
+    font-size:13px; color:var(--ink-soft); letter-spacing:0.06em; text-transform:uppercase;
+  }
+  .name-inputs{display:flex; gap:8px; align-items:center;}
+  .name-inputs input{
+    font-family:Georgia,serif; font-size:15px; border:none; border-bottom:1px solid var(--line);
+    background:transparent; padding:4px 2px; color:var(--ink); width:170px;
+  }
+  .name-inputs input:focus{outline:none; border-bottom-color:var(--gold);}
+  .tag{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    background:var(--ink); color:var(--paper); padding:5px 10px; border-radius:2px; height:fit-content;
+  }
+  .layout{display:grid; grid-template-columns:260px 1fr; gap:24px; align-items:start;}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr;} }
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:20px;}
+  .panel h2{
+    font-family:Georgia,serif; font-size:14px; text-transform:uppercase; letter-spacing:0.08em;
+    margin:0 0 14px 0; color:var(--ink-soft); border-bottom:1px solid var(--line); padding-bottom:8px;
+  }
+  .inputs{position:sticky; top:20px;}
+  .field{display:block; margin-bottom:14px;}
+  .field-label{display:block; font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
+  .field-input{
+    display:flex; align-items:center; border:1px solid var(--line); border-radius:4px;
+    overflow:hidden; background:#fbfbf8;
+  }
+  .field-input:focus-within{border-color:var(--gold);}
+  .field-input input{
+    flex:1; border:none; background:transparent; padding:8px; font-family:'IBM Plex Mono',monospace;
+    font-size:14px; color:var(--ink); width:100%; min-width:0;
+  }
+  .field-input input:focus{outline:none;}
+  .affix{padding:0 8px; color:var(--ink-soft); font-size:13px; font-family:'IBM Plex Mono',monospace;}
+  .kpi-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  @media (max-width:700px){ .kpi-strip{grid-template-columns:repeat(2,1fr);} }
+  .kpi{background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--gold); border-radius:4px; padding:14px 16px;}
+  .kpi.profit{border-left-color:var(--profit);}
+  .kpi.cost{border-left-color:var(--cost);}
+  .kpi-label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-soft); margin-bottom:6px;}
+  .kpi-value{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600;}
+  .kpi-sub{font-size:11.5px; color:var(--ink-soft); margin-top:4px; font-family:'IBM Plex Mono',monospace;}
+  .section{margin-bottom:22px;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{text-align:right; padding:9px 10px; border-bottom:1px solid var(--line); font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
+  th:first-child, td:first-child{text-align:left; font-family:Georgia,serif;}
+  th{text-transform:uppercase; font-size:10.5px; letter-spacing:0.05em; color:var(--ink-soft); font-family:Georgia,serif;}
+  tr.base-row{background:var(--gold-soft);}
+  .delta-up{color:var(--cost);}
+  .delta-down{color:var(--profit);}
+  .chart-wrap{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:18px;}
+  .footnote{font-size:11px; color:var(--ink-soft); margin-top:10px;}
+  svg text{font-family:'IBM Plex Mono',monospace;}
+  .legend{display:flex; gap:18px; font-size:12px; margin-bottom:6px; flex-wrap:wrap;}
+  .legend span{display:flex; align-items:center; gap:6px;}
+  .legend .swatch{width:14px; height:3px; display:inline-block; border-radius:2px;}
+  .tooltip-box{
+    position:absolute; background:var(--ink); color:#fff; font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px; padding:8px 10px; border-radius:4px; pointer-events:none; opacity:0; transition:opacity 0.1s;
+    white-space:nowrap; z-index:10;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="title-block">
+    <div class="name-inputs">
+      <input id="companyInput" value="Aster Supply Co." />
+      <span style="color:var(--ink-soft)">/</span>
+      <input id="productInput" value="Model-40 Widget" />
+    </div>
+    <h1>CVP Model</h1>
+    <div class="sub">Cost · Volume · Profit Dashboard</div>
+  </div>
+  <div class="tag">Live model — edit any input</div>
+</div>
+
+<div class="layout">
+  <div class="panel inputs">
+    <h2>Inputs</h2>
+
+    <label class="field">
+      <span class="field-label">Selling price / unit</span>
+      <div class="field-input"><span class="affix">$</span><input type="number" id="price" value="50" step="0.5"></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Variable cost / unit</span>
+      <div class="field-input"><span class="affix">$</span><input type="number" id="varCost" value="30" step="0.5"></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Fixed costs (total)</span>
+      <div class="field-input"><span class="affix">$</span><input type="number" id="fixedCost" value="200000" step="1000"></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Expected sales volume</span>
+      <div class="field-input"><input type="number" id="expectedVol" value="15000" step="100"><span class="affix">units</span></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Tax rate</span>
+      <div class="field-input"><input type="number" id="taxRate" value="25" step="1"><span class="affix">%</span></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Target profit (after tax)</span>
+      <div class="field-input"><span class="affix">$</span><input type="number" id="targetProfit" value="100000" step="1000"></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Chart volume range (max units)</span>
+      <div class="field-input"><input type="number" id="maxUnits" value="30000" step="500"><span class="affix">units</span></div>
+    </label>
+  </div>
+
+  <div>
+    <div class="kpi-strip" id="kpiStrip"></div>
+
+    <div class="section chart-wrap">
+      <h2 style="margin:0 0 10px 0; font-family:Georgia,serif; font-size:14px; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-soft);">
+        Cost-Volume-Profit Chart
+      </h2>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--cost)"></i> Total Cost</span>
+        <span><i class="swatch" style="background:var(--profit)"></i> Total Revenue</span>
+        <span><i class="swatch" style="background:var(--gold)"></i> Break-even</span>
+      </div>
+      <div style="position:relative;">
+        <svg id="cvpChart" width="100%" height="380" viewBox="0 0 900 380" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="tooltip-box" id="tooltipBox"></div>
+      </div>
+      <div class="footnote" id="chartFootnote"></div>
+    </div>
+
+    <div class="section panel">
+      <h2 id="perfHeading">Expected Performance</h2>
+      <table>
+        <tbody id="perfTable"></tbody>
+      </table>
+    </div>
+
+    <div class="section panel">
+      <h2>Sensitivity Analysis — Break-even vs. ±10% Shocks</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Scenario</th><th>Price</th><th>Var. Cost</th><th>CM/unit</th>
+            <th>Break-even (units)</th><th>Break-even (sales)</th><th>Δ vs base</th>
+          </tr>
+        </thead>
+        <tbody id="sensTable"></tbody>
+      </table>
+      <div class="footnote">Rust = break-even rises (needs more volume to cover costs). Green = break-even falls (easier to cover costs).</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function fmtMoney(n){
+  const s = Math.abs(n).toLocaleString(undefined,{maximumFractionDigits:0});
+  return n < 0 ? `-$${s}` : `$${s}`;
+}
+function fmtUnits(n){ return n.toLocaleString(undefined,{maximumFractionDigits:0}); }
+function fmtPct(n){ return `${(n*100).toFixed(1)}%`; }
+
+const ids = ['price','varCost','fixedCost','expectedVol','taxRate','targetProfit','maxUnits'];
+ids.forEach(id => document.getElementById(id).addEventListener('input', render));
+document.getElementById('companyInput').addEventListener('input', render);
+document.getElementById('productInput').addEventListener('input', render);
+
+function getInputs(){
+  return {
+    price: parseFloat(document.getElementById('price').value) || 0,
+    varCost: parseFloat(document.getElementById('varCost').value) || 0,
+    fixedCost: parseFloat(document.getElementById('fixedCost').value) || 0,
+    expectedVol: parseFloat(document.getElementById('expectedVol').value) || 0,
+    taxRate: parseFloat(document.getElementById('taxRate').value) || 0,
+    targetProfit: parseFloat(document.getElementById('targetProfit').value) || 0,
+    maxUnits: parseFloat(document.getElementById('maxUnits').value) || 1,
+    company: document.getElementById('companyInput').value,
+    product: document.getElementById('productInput').value,
+  };
+}
+
+function computeSensitivity(price, varCost, fixedCost, beUnits){
+  const scenarios = [
+    {label:'Selling price −10%', price: price*0.9, varCost},
+    {label:'Base case', price, varCost},
+    {label:'Selling price +10%', price: price*1.1, varCost},
+    {label:'Variable cost −10%', price, varCost: varCost*0.9},
+    {label:'Variable cost +10%', price, varCost: varCost*1.1},
+  ];
+  return scenarios.map(s=>{
+    const scm = s.price - s.varCost;
+    const sBeUnits = scm > 0 ? fixedCost/scm : Infinity;
+    const sBeValue = sBeUnits * s.price;
+    const delta = beUnits > 0 ? (sBeUnits - beUnits)/beUnits : 0;
+    return {...s, cm: scm, beUnits: sBeUnits, beValue: sBeValue, delta};
+  });
+}
+
+function render(){
+  const {price, varCost, fixedCost, expectedVol, taxRate, targetProfit, maxUnits, company, product} = getInputs();
+
+  const cm = price - varCost;
+  const cmRatio = price > 0 ? cm/price : 0;
+  const beUnits = cm > 0 ? fixedCost/cm : 0;
+  const beValue = beUnits * price;
+
+  const expectedRevenue = expectedVol * price;
+  const mosUnits = expectedVol - beUnits;
+  const mosValue = mosUnits * price;
+  const mosPct = expectedVol > 0 ? mosUnits/expectedVol : 0;
+
+  const t = Math.min(Math.max(taxRate,0),99)/100;
+  const preTaxTargetProfit = t < 1 ? targetProfit/(1-t) : targetProfit;
+  const targetUnits = cm > 0 ? (fixedCost + preTaxTargetProfit)/cm : 0;
+  const targetRevenue = targetUnits * price;
+
+  const expectedPreTaxProfit = expectedRevenue - (expectedVol*varCost) - fixedCost;
+  const expectedAfterTaxProfit = expectedPreTaxProfit * (1-t);
+
+  document.title = `CVP Model — ${company}`;
+
+  // KPI strip
+  const kpiStrip = document.getElementById('kpiStrip');
+  kpiStrip.innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Contribution Margin / Unit</div>
+      <div class="kpi-value">${fmtMoney(cm)}</div>
+      <div class="kpi-sub">CM ratio ${fmtPct(cmRatio)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Break-even Point</div>
+      <div class="kpi-value">${fmtUnits(beUnits)} u</div>
+      <div class="kpi-sub">${fmtMoney(beValue)} in sales</div>
+    </div>
+    <div class="kpi ${mosUnits >= 0 ? 'profit':'cost'}">
+      <div class="kpi-label">Margin of Safety</div>
+      <div class="kpi-value">${fmtPct(mosPct)}</div>
+      <div class="kpi-sub">${fmtUnits(mosUnits)} u · ${fmtMoney(mosValue)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Units for Target Profit</div>
+      <div class="kpi-value">${fmtUnits(targetUnits)} u</div>
+      <div class="kpi-sub">${fmtMoney(targetRevenue)} in sales</div>
+    </div>
+  `;
+
+  // Performance table
+  document.getElementById('perfHeading').textContent = `Expected Performance at ${fmtUnits(expectedVol)} Units — ${company}`;
+  document.getElementById('perfTable').innerHTML = `
+    <tr><td>Revenue</td><td>${fmtMoney(expectedRevenue)}</td></tr>
+    <tr><td>Variable costs</td><td>${fmtMoney(expectedVol*varCost)}</td></tr>
+    <tr><td>Fixed costs</td><td>${fmtMoney(fixedCost)}</td></tr>
+    <tr><td>Pre-tax profit</td><td>${fmtMoney(expectedPreTaxProfit)}</td></tr>
+    <tr><td>Tax (${taxRate}%)</td><td>${fmtMoney(expectedPreTaxProfit*t)}</td></tr>
+    <tr style="font-weight:700"><td>After-tax profit</td><td>${fmtMoney(expectedAfterTaxProfit)}</td></tr>
+  `;
+
+  // Sensitivity table
+  const sens = computeSensitivity(price, varCost, fixedCost, beUnits);
+  document.getElementById('sensTable').innerHTML = sens.map(s => `
+    <tr class="${s.label==='Base case' ? 'base-row':''}">
+      <td>${s.label}</td>
+      <td>${fmtMoney(s.price)}</td>
+      <td>${fmtMoney(s.varCost)}</td>
+      <td>${fmtMoney(s.cm)}</td>
+      <td>${fmtUnits(s.beUnits)}</td>
+      <td>${fmtMoney(s.beValue)}</td>
+      <td class="${s.delta>0?'delta-up':s.delta<0?'delta-down':''}">${s.delta===0?'—':`${s.delta>0?'+':''}${(s.delta*100).toFixed(1)}%`}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('chartFootnote').textContent =
+    `Gold marker = break-even point (${fmtUnits(beUnits)} units, ${fmtMoney(beValue)}). Shaded band = fixed cost floor.`;
+
+  drawChart({price, varCost, fixedCost, maxUnits, beUnits, beValue});
+}
+
+function drawChart({price, varCost, fixedCost, maxUnits, beUnits, beValue}){
+  const svg = document.getElementById('cvpChart');
+  const W = 900, H = 380;
+  const marginL = 70, marginR = 20, marginT = 20, marginB = 40;
+  const plotW = W - marginL - marginR;
+  const plotH = H - marginT - marginB;
+
+  const points = 24;
+  const step = Math.max(maxUnits/points, 1);
+  const data = [];
+  for(let i=0;i<=points;i++){
+    const units = Math.round(i*step);
+    const revenue = units*price;
+    const totalCost = fixedCost + units*varCost;
+    data.push({units, revenue, totalCost});
+  }
+  const maxVal = Math.max(...data.map(d=>Math.max(d.revenue, d.totalCost)), fixedCost);
+  const yMax = Math.ceil(maxVal/10000)*10000 || 10000;
+  const xMax = maxUnits || 1;
+
+  const xScale = u => marginL + (u/xMax)*plotW;
+  const yScale = v => marginT + plotH - (v/yMax)*plotH;
+
+  function pathFor(key){
+    return data.map((d,i) => `${i===0?'M':'L'} ${xScale(d.units)} ${yScale(d[key])}`).join(' ');
+  }
+
+  const gridLines = [];
+  const numGrid = 5;
+  for(let i=0;i<=numGrid;i++){
+    const val = (yMax/numGrid)*i;
+    const y = yScale(val);
+    gridLines.push(`<line x1="${marginL}" y1="${y}" x2="${W-marginR}" y2="${y}" stroke="#e2e4da" stroke-dasharray="3,3" />`);
+    gridLines.push(`<text x="${marginL-10}" y="${y+4}" text-anchor="end" font-size="11" fill="#4a5a68">$${(val/1000).toFixed(0)}k</text>`);
+  }
+  const xTicks = [];
+  const numXTicks = 6;
+  for(let i=0;i<=numXTicks;i++){
+    const u = Math.round((xMax/numXTicks)*i);
+    const x = xScale(u);
+    xTicks.push(`<text x="${x}" y="${H-marginB+18}" text-anchor="middle" font-size="11" fill="#4a5a68">${fmtUnits(u)}</text>`);
+  }
+
+  const beX = xScale(Math.min(beUnits, xMax));
+  const beY = yScale(Math.min(beValue, yMax));
+  const beInRange = beUnits <= xMax;
+
+  // fixed cost shaded band (area between 0 and fixedCost line)
+  const fixedY = yScale(Math.min(fixedCost, yMax));
+  const fixedBand = `<rect x="${marginL}" y="${fixedY}" width="${plotW}" height="${plotH - (fixedY - marginT)}" fill="#a1452a" opacity="0.06" />`;
+
+  svg.innerHTML = `
+    ${gridLines.join('')}
+    ${xTicks.join('')}
+    <line x1="${marginL}" y1="${marginT}" x2="${marginL}" y2="${H-marginB}" stroke="#1c2b39" stroke-width="1" />
+    <line x1="${marginL}" y1="${H-marginB}" x2="${W-marginR}" y2="${H-marginB}" stroke="#1c2b39" stroke-width="1" />
+    ${fixedBand}
+    <path d="${pathFor('totalCost')}" fill="none" stroke="#a1452a" stroke-width="2.5" />
+    <path d="${pathFor('revenue')}" fill="none" stroke="#1f6f5c" stroke-width="2.5" />
+    ${beInRange ? `
+      <line x1="${beX}" y1="${marginT}" x2="${beX}" y2="${H-marginB}" stroke="#b6862f" stroke-width="1.5" stroke-dasharray="4,3" />
+      <circle cx="${beX}" cy="${beY}" r="6" fill="#b6862f" stroke="#fff" stroke-width="2" />
+    ` : ''}
+    <text x="${(marginL+W-marginR)/2}" y="${H-4}" text-anchor="middle" font-size="11" fill="#4a5a68">Units sold</text>
+    ${data.map(d => `<circle data-units="${d.units}" data-revenue="${d.revenue}" data-cost="${d.totalCost}" cx="${xScale(d.units)}" cy="${yScale(d.revenue)}" r="9" fill="transparent" class="hover-dot" style="cursor:pointer" />`).join('')}
+  `;
+
+  const tooltip = document.getElementById('tooltipBox');
+  svg.querySelectorAll('.hover-dot').forEach(dot => {
+    dot.addEventListener('mousemove', (e) => {
+      const units = dot.getAttribute('data-units');
+      const revenue = dot.getAttribute('data-revenue');
+      const cost = dot.getAttribute('data-cost');
+      tooltip.innerHTML = `${fmtUnits(units)} units<br/>Revenue: ${fmtMoney(+revenue)}<br/>Cost: ${fmtMoney(+cost)}`;
+      const rect = svg.getBoundingClientRect();
+      tooltip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+      tooltip.style.opacity = '1';
+    });
+    dot.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+  });
+}
+
+render();
+</script>
+</body>
+</html>
